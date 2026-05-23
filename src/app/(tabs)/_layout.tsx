@@ -54,6 +54,22 @@ export default function AppTabs() {
         }}
       />
       <Tabs.Screen
+        name="repeated-tasks"
+        options={{
+          title: 'Repeat',
+          tabBarIcon: ({ color, size }) => (
+            <SymbolView
+              name={{
+                ios: 'arrow.triangle.2.circlepath',
+                android: 'repeat',
+              }}
+              size={size}
+              tintColor={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',

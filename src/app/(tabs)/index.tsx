@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from 'expo-router';
@@ -7,8 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalendarGrid } from '@/components/calendar/calendar-grid';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { RepeatedTaskPicker } from '@/components/task/repeated-task-picker';
 import { TaskForm } from '@/components/task/task-form';
 import { Spacing } from '@/constants/theme';
+import { getRepeatedTaskLastUsed, getRepeatedTasks } from '@/db/repeated-tasks';
 import { getSetting } from '@/db/settings';
 import {
   createTask,
@@ -17,6 +19,7 @@ import {
   getTasksByMonth,
   updateTask,
 } from '@/db/tasks';
+import type { RepeatedTask } from '@/types/repeated-task';
 import type { Task } from '@/types/task';
 
 const MONTH_NAMES = [
@@ -65,6 +68,13 @@ export default function CalendarScreen() {
   const [dayTasks, setDayTasks] = useState<Task[]>([]);
   const [firstDayOfWeek, setFirstDayOfWeek] = useState<'sunday' | 'monday'>('sunday');
   const [editing, setEditing] = useState<EditingState>({ mode: 'none' });
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [templateTitle, setTemplateTitle] = useState('');
+  const [templateNotes, setTemplateNotes] = useState('');
+  const [formKey, setFormKey] = useState(0);
+  const [repeatedTasks, setRepeatedTasks] = useState<RepeatedTask[]>([]);
+  const [lastUsedMap, setLastUsedMap] = useState<Record<string, string | null>>({});
+  const loadedTemplates = useRef(false);
 
   const yearMonth = `${year}-${String(month + 1).padStart(2, '0')}`;
 
@@ -94,6 +104,25 @@ export default function CalendarScreen() {
     load();
   });
 
+  useEffect(() => {
+    if (editing.mode === 'create' && !loadedTemplates.current) {
+      loadedTemplates.current = true;
+      async function load() {
+        const all = await getRepeatedTasks(db);
+        setRepeatedTasks(all);
+        const map: Record<string, string | null> = {};
+        for (const t of all) {
+          map[t.title] = await getRepeatedTaskLastUsed(db, t.title);
+        }
+        setLastUsedMap(map);
+      }
+      load();
+    }
+    if (editing.mode !== 'create') {
+      loadedTemplates.current = false;
+    }
+  }, [db, editing.mode]);
+
   function goToPrevMonth() {
     setMonth((m) => {
       if (m === 0) {
@@ -120,6 +149,10 @@ export default function CalendarScreen() {
   }
 
   function startCreate() {
+    setTemplateTitle('');
+    setTemplateNotes('');
+    setFormKey((k) => k + 1);
+    setPickerOpen(false);
     setEditing({ mode: 'create' });
   }
 
@@ -141,6 +174,14 @@ export default function CalendarScreen() {
 
   function cancelEdit() {
     setEditing({ mode: 'none' });
+    setPickerOpen(false);
+  }
+
+  function handleTemplateSelect(task: RepeatedTask) {
+    setTemplateTitle(task.title);
+    setTemplateNotes(task.default_notes);
+    setFormKey((k) => k + 1);
+    setPickerOpen(false);
   }
 
   async function handleDelete(task: Task) {
@@ -224,20 +265,42 @@ export default function CalendarScreen() {
         {editing.mode !== 'none' && (
           <ThemedView style={styles.overlay}>
             <SafeAreaView style={styles.overlayInner}>
-              <ThemedText style={styles.overlayTitle}>
-                {editing.mode === 'create' ? 'New Task' : 'Edit Task'}
-              </ThemedText>
-              <ThemedText themeColor="textSecondary" style={styles.overlayDate}>
-                {formatDateHeading(selectedDate)}
-              </ThemedText>
-              <KeyboardAvoidingView behavior="padding" style={styles.formWrapper}>
-                <TaskForm
-                  initialTitle={editing.mode === 'edit' ? editing.task.title : ''}
-                  initialNotes={editing.mode === 'edit' ? editing.task.notes : ''}
-                  onSave={handleFormSave}
-                  onCancel={cancelEdit}
+              {pickerOpen && editing.mode === 'create' ? (
+                <RepeatedTaskPicker
+                  tasks={repeatedTasks}
+                  lastUsedMap={lastUsedMap}
+                  onSelect={handleTemplateSelect}
+                  onCancel={() => setPickerOpen(false)}
                 />
-              </KeyboardAvoidingView>
+              ) : (
+                <>
+                  <ThemedText style={styles.overlayTitle}>
+                    {editing.mode === 'create' ? 'New Task' : 'Edit Task'}
+                  </ThemedText>
+                  <ThemedText themeColor="textSecondary" style={styles.overlayDate}>
+                    {formatDateHeading(selectedDate)}
+                  </ThemedText>
+                  {editing.mode === 'create' && repeatedTasks.length > 0 && (
+                    <Pressable
+                      onPress={() => setPickerOpen(true)}
+                      style={styles.templateRow}
+                    >
+                      <ThemedText themeColor="textSecondary">
+                        Use repeated task...
+                      </ThemedText>
+                    </Pressable>
+                  )}
+                  <KeyboardAvoidingView behavior="padding" style={styles.formWrapper}>
+                    <TaskForm
+                      key={formKey}
+                      initialTitle={editing.mode === 'edit' ? editing.task.title : templateTitle}
+                      initialNotes={editing.mode === 'edit' ? editing.task.notes : templateNotes}
+                      onSave={handleFormSave}
+                      onCancel={cancelEdit}
+                    />
+                  </KeyboardAvoidingView>
+                </>
+              )}
             </SafeAreaView>
           </ThemedView>
         )}
@@ -343,6 +406,15 @@ const styles = StyleSheet.create({
   },
   overlayDate: {
     marginBottom: Spacing.three,
+  },
+  templateRow: {
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    borderColor: 'gray',
+    borderStyle: 'dashed',
+    marginBottom: Spacing.two,
   },
   formWrapper: {
     flex: 1,

@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 4;
+const DATABASE_VERSION = 5;
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
   const result = await db.getFirstAsync<{ user_version: number }>(
@@ -12,55 +12,51 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     return;
   }
 
-  if (currentDbVersion === 0) {
-    await db.execAsync(`
-      PRAGMA journal_mode = 'wal';
-      CREATE TABLE IF NOT EXISTS tasks (
-        id INTEGER PRIMARY KEY NOT NULL,
-        date TEXT NOT NULL,
-        title TEXT NOT NULL,
-        notes TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-      CREATE INDEX IF NOT EXISTS idx_tasks_date ON tasks(date);
-    `);
-  }
+  await db.execAsync(`
+    PRAGMA journal_mode = 'wal';
 
-  if (currentDbVersion < 2) {
-    await db.runAsync(
-      'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+    CREATE TABLE IF NOT EXISTS tasks (
+      id TEXT PRIMARY KEY NOT NULL,
+      date TEXT NOT NULL,
+      title TEXT NOT NULL,
+      notes TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
     );
-    await db.runAsync(
-      "INSERT OR IGNORE INTO settings (key, value) VALUES ('first_day_of_week', 'sunday')",
-    );
-  }
 
-  if (currentDbVersion < 3) {
-    await db.runAsync(
-      `CREATE TABLE IF NOT EXISTS repeated_tasks (
-        id INTEGER PRIMARY KEY NOT NULL,
-        title TEXT NOT NULL,
-        default_notes TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-      )`,
-    );
-  }
+    CREATE INDEX IF NOT EXISTS idx_tasks_date ON tasks(date);
 
-  if (currentDbVersion < 4) {
-    await db.runAsync(
-      `CREATE TABLE IF NOT EXISTS categories (
-        id INTEGER PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-      )`,
+    CREATE TABLE IF NOT EXISTS repeated_tasks (
+      id TEXT PRIMARY KEY NOT NULL,
+      title TEXT NOT NULL,
+      default_notes TEXT NOT NULL DEFAULT '',
+      category_id TEXT REFERENCES categories(id),
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
     );
-    await db.runAsync(
-      'ALTER TABLE repeated_tasks ADD COLUMN category_id INTEGER REFERENCES categories(id)',
+
+    CREATE TABLE IF NOT EXISTS categories (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
     );
-  }
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sync_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('first_day_of_week', 'sunday');
+  `);
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }

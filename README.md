@@ -1,56 +1,139 @@
-# Welcome to your Expo app 👋
+# Task Journal
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A mobile task journal app with calendar view, repeated task templates, categories, and LAN sync. Built with Expo SDK 56.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Calendar view** — Monthly grid showing tasks per day. Tap a day to see and manage its tasks.
+- **All Tasks** — Browse all tasks grouped by date.
+- **Repeated Tasks** — Create task templates (e.g., "Standup", "Gym") with categories. See when each was last logged and view full history.
+- **Categories** — Organize repeated tasks into categories (Work, Personal, etc.).
+- **LAN Sync** — Sync tasks between devices on the same network via a lightweight Go server.
+- **Dark mode** — Automatic light/dark theme based on system preference.
 
-   ```bash
-   npm install
-   ```
+## Tech Stack
 
-2. Start the app
+| Layer | Technology |
+|---|---|
+| Framework | Expo SDK 56 (React Native 0.85, React 19) |
+| Language | TypeScript (strict mode) |
+| Routing | Expo Router (file-based, typed routes) |
+| Database | SQLite via `expo-sqlite` |
+| Compiler | React Compiler (automatic memoization) |
+| Icons | `expo-symbols` (SF Symbols on iOS, Material Symbols on Android) |
+| Sync Server | Go with WASM-based SQLite (`ncruces/go-sqlite3`) |
 
-   ```bash
-   npx expo start
-   ```
+## Getting Started
 
-In the output, you'll find options to open the app in a
+### Prerequisites
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Node.js 22+
+- Expo CLI (`npx expo install`)
+- For sync: Docker or Go 1.26+
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Install
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```sh
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Run on device
 
-### Other setup steps
+```sh
+npm run android   # Android
+npm run ios       # iOS
+npm run web       # Web
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### Sync Server
 
-## Learn more
+```sh
+# Docker
+docker build -t sync-engine sync-engine/
+docker run -p 42061:42061 -v sync-data:/data sync-engine
 
-To learn more about developing your project with Expo, look at the following resources:
+# Or binary
+cd sync-engine && go build -o sync-engine . && ./sync-engine
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Configure the server URL in Settings → Sync on the device.
 
-## Join the community
+## Project Structure
 
-Join our community of developers creating universal apps.
+```
+├── src/
+│   ├── app/                    # Expo Router screens
+│   │   ├── (tabs)/             # Tab navigator
+│   │   │   ├── index.tsx       # Journal (calendar + tasks)
+│   │   │   ├── all-tasks.tsx   # All tasks by date
+│   │   │   ├── repeated-tasks.tsx  # Templates + history
+│   │   │   └── settings.tsx    # Preferences + sync
+│   │   ├── task/[date].tsx     # Task detail screen
+│   │   └── _layout.tsx         # Root layout (SQLite + theme)
+│   ├── components/             # Reusable UI components
+│   │   ├── calendar/           # Calendar grid
+│   │   └── task/               # Task form, item, pickers
+│   ├── db/                     # Database layer
+│   │   ├── schema.ts           # Migrations (v5)
+│   │   ├── tasks.ts            # Task CRUD + sync
+│   │   ├── repeated-tasks.ts   # RepeatedTask CRUD + sync
+│   │   ├── categories.ts       # Category CRUD + sync
+│   │   ├── settings.ts         # Local preferences
+│   │   ├── sync.ts             # Sync orchestration
+│   │   └── sync-settings.ts    # Sync URL/timestamp
+│   ├── types/                  # TypeScript interfaces
+│   ├── utils/                  # UUIDv7 generation
+│   └── constants/              # Theme, colors, spacing
+├── sync-engine/                # Go sync server
+│   ├── main.go                 # Entry point
+│   ├── handlers.go             # HTTP handlers (/sync, /rebuild)
+│   ├── db.go                   # SQLite schema + queries
+│   ├── models.go               # JSON types
+│   ├── uuid.go                 # UUIDv7 generation
+│   ├── Dockerfile              # Multi-stage build
+│   ├── README.md               # Server docs
+│   └── ADAPTATION.md           # Guide for reusing in other apps
+├── app.json                    # Expo config
+├── eas.json                    # EAS Build profiles
+└── .github/workflows/          # CI/CD (APK + Docker)
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Database
+
+All entities use UUIDv7 string IDs and Unix millisecond timestamps. Deletes are soft — setting `deleted_at` instead of removing rows. This enables sync to propagate deletions across devices.
+
+| Table | Synced | Description |
+|---|---|---|
+| `tasks` | Yes | Date, title, notes per day |
+| `repeated_tasks` | Yes | Task templates with default notes and category |
+| `categories` | Yes | Named groups for repeated tasks |
+| `settings` | No | Local preferences (first day of week, sync URL) |
+| `sync_meta` | No | Sync state (last sync timestamp) |
+
+## Sync Protocol
+
+Timestamp-based incremental sync over HTTP JSON:
+
+1. Client sends all locally changed records since `last_sync_at`
+2. Server upserts each record (server wins on timestamp tie)
+3. Server returns all records changed since `last_sync_at`
+4. Client merges server records with same conflict resolution
+5. Both sides save the sync timestamp
+
+No authentication — designed for trusted LAN use only.
+
+## Release
+
+Push a `v*.*.*` tag to trigger the GitHub Actions workflow:
+
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+This builds an APK (via EAS) and pushes the sync-engine Docker image to GHCR.
+
+## License
+
+Private project.

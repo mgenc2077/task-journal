@@ -44,3 +44,7 @@ example
 
 # notes
 notes.md
+
+# Sync engine
+sync-engine.log
+*.db

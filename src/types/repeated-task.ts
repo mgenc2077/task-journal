@@ -1,10 +1,11 @@
 export interface RepeatedTask {
-  id: number;
+  id: string;
   title: string;
   default_notes: string;
-  category_id: number | null;
-  created_at: string;
-  updated_at: string;
+  category_id: string | null;
+  created_at: number;
+  updated_at: number;
+  deleted_at: number | null;
 }
 
 export type NewRepeatedTask = Pick<RepeatedTask, 'title' | 'default_notes' | 'category_id'>;

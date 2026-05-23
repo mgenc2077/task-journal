@@ -15,10 +15,10 @@ import type { Category } from '@/types/category';
 
 interface CategoryPickerProps {
   categories: Category[];
-  selectedId: number | null;
-  onSelect: (id: number | null) => void;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
   onAddCategory: (name: string) => void;
-  onDeleteCategory: (id: number) => void;
+  onDeleteCategory: (id: string) => void;
   onClose: () => void;
 }
 

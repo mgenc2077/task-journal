@@ -71,12 +71,12 @@ export default function RepeatedTasksScreen() {
   const [tasks, setTasks] = useState<RepeatedTask[]>([]);
   const [lastUsedMap, setLastUsedMap] = useState<Record<string, string | null>>({});
   const [categories, setCategories] = useState<Category[]>([]);
-  const [categoryMap, setCategoryMap] = useState<Record<number, string>>({});
+  const [categoryMap, setCategoryMap] = useState<Record<string, string>>({});
   const [overlay, setOverlay] = useState<OverlayState>({ mode: 'none' });
 
   const [formTitle, setFormTitle] = useState('');
   const [formNotes, setFormNotes] = useState('');
-  const [formCategoryId, setFormCategoryId] = useState<number | null>(null);
+  const [formCategoryId, setFormCategoryId] = useState<string | null>(null);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   async function loadData() {
@@ -86,7 +86,7 @@ export default function RepeatedTasksScreen() {
     ]);
     setTasks(all);
     setCategories(cats);
-    const catMap: Record<number, string> = {};
+    const catMap: Record<string, string> = {};
     for (const c of cats) {
       catMap[c.id] = c.name;
     }
@@ -156,21 +156,21 @@ export default function RepeatedTasksScreen() {
     await createCategory(db, { name });
     const cats = await getCategories(db);
     setCategories(cats);
-    const catMap: Record<number, string> = {};
+    const catMap: Record<string, string> = {};
     for (const c of cats) {
       catMap[c.id] = c.name;
     }
     setCategoryMap(catMap);
   }
 
-  async function handleDeleteCategory(id: number) {
+  async function handleDeleteCategory(id: string) {
     await deleteCategory(db, id);
     if (formCategoryId === id) {
       setFormCategoryId(null);
     }
     const cats = await getCategories(db);
     setCategories(cats);
-    const catMap: Record<number, string> = {};
+    const catMap: Record<string, string> = {};
     for (const c of cats) {
       catMap[c.id] = c.name;
     }

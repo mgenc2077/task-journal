@@ -23,6 +23,24 @@ export async function getDatesWithTasks(
   return rows.map((r) => r.date);
 }
 
+export async function getTasksByMonth(
+  db: SQLiteDatabase,
+  yearMonth: string,
+): Promise<Record<string, Task[]>> {
+  const tasks = await db.getAllAsync<Task>(
+    "SELECT * FROM tasks WHERE date LIKE ? || '%' ORDER BY date ASC, created_at ASC",
+    yearMonth,
+  );
+  const grouped: Record<string, Task[]> = {};
+  for (const task of tasks) {
+    if (!grouped[task.date]) {
+      grouped[task.date] = [];
+    }
+    grouped[task.date].push(task);
+  }
+  return grouped;
+}
+
 export async function getAllTasksGrouped(
   db: SQLiteDatabase,
 ): Promise<{ date: string; tasks: Task[] }[]> {

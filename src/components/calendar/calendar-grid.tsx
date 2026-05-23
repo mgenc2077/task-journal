@@ -1,20 +1,27 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Dimensions, Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import type { Task } from '@/types/task';
 import { useTheme } from '@/hooks/use-theme';
 
 interface CalendarGridProps {
   year: number;
   month: number;
-  taskDates: Set<string>;
+  selectedDate: string | null;
+  tasksByDate: Record<string, Task[]>;
   firstDayOfWeek: 'sunday' | 'monday';
   onDayPress: (date: string) => void;
 }
 
+const MAX_VISIBLE_TASKS = 2;
+
 const SUNDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CELL_WIDTH = (SCREEN_WIDTH - Spacing.one * 2) / 7;
 
 function formatDate(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -40,7 +47,7 @@ function getToday(): string {
   return formatDate(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-export function CalendarGrid({ year, month, taskDates, firstDayOfWeek, onDayPress }: CalendarGridProps) {
+export function CalendarGrid({ year, month, selectedDate, tasksByDate, firstDayOfWeek, onDayPress }: CalendarGridProps) {
   const theme = useTheme();
   const today = getToday();
   const days = getDays(year, month, firstDayOfWeek);
@@ -63,7 +70,10 @@ export function CalendarGrid({ year, month, taskDates, firstDayOfWeek, onDayPres
             return <ThemedView key={`blank-${i}`} style={styles.cell} />;
           }
           const isToday = entry.date === today;
-          const hasTasks = taskDates.has(entry.date);
+          const isSelected = entry.date === selectedDate;
+          const tasks = tasksByDate[entry.date] ?? [];
+          const visibleTasks = tasks.slice(0, MAX_VISIBLE_TASKS);
+          const overflow = tasks.length - MAX_VISIBLE_TASKS;
           return (
             <Pressable
               key={entry.date}
@@ -74,18 +84,30 @@ export function CalendarGrid({ year, month, taskDates, firstDayOfWeek, onDayPres
                   styles.todayCell,
                   { borderColor: theme.text },
                 ],
+                isSelected && [
+                  styles.selectedCell,
+                  { backgroundColor: theme.backgroundSelected },
+                ],
               ]}
             >
               <ThemedText
-                type="small"
                 style={[styles.dayNumber, isToday && styles.todayText]}
               >
                 {entry.day}
               </ThemedText>
-              {hasTasks && (
-                <ThemedView
-                  style={[styles.dot, { backgroundColor: theme.text }]}
-                />
+              {visibleTasks.map((task) => (
+                <ThemedText
+                  key={task.id}
+                  style={styles.taskTitle}
+                  numberOfLines={1}
+                >
+                  {task.title}
+                </ThemedText>
+              ))}
+              {overflow > 0 && (
+                <ThemedText style={styles.overflowText}>
+                  +{overflow} more
+                </ThemedText>
               )}
             </Pressable>
           );
@@ -95,18 +117,16 @@ export function CalendarGrid({ year, month, taskDates, firstDayOfWeek, onDayPres
   );
 }
 
-const cellSize = (Math.min(400, 360) - Spacing.four * 2) / 7;
-
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: Spacing.two,
+    paddingHorizontal: Spacing.half,
   },
   headerRow: {
     flexDirection: 'row',
     marginBottom: Spacing.one,
   },
   dayHeader: {
-    width: cellSize,
+    width: CELL_WIDTH,
     alignItems: 'center',
     paddingVertical: Spacing.one,
   },
@@ -115,25 +135,35 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   cell: {
-    width: cellSize,
-    height: cellSize + Spacing.half,
+    width: CELL_WIDTH,
+    minHeight: CELL_WIDTH * 0.9,
+    padding: Spacing.one,
     alignItems: 'center',
-    justifyContent: 'center',
     borderRadius: Spacing.one,
   },
   todayCell: {
     borderWidth: 1.5,
   },
+  selectedCell: {
+    borderRadius: Spacing.one,
+  },
   dayNumber: {
+    fontSize: 14,
     textAlign: 'center',
+    marginBottom: Spacing.half,
   },
   todayText: {
     fontWeight: '700',
   },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    marginTop: 2,
+  taskTitle: {
+    fontSize: 10,
+    lineHeight: 13,
+    width: '100%',
+    textAlign: 'center',
+    overflow: 'hidden',
+  },
+  overflowText: {
+    fontSize: 9,
+    opacity: 0.6,
   },
 });

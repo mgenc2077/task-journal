@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
   const result = await db.getFirstAsync<{ user_version: number }>(
@@ -25,6 +25,15 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
       );
       CREATE INDEX IF NOT EXISTS idx_tasks_date ON tasks(date);
     `);
+  }
+
+  if (currentDbVersion < 2) {
+    await db.runAsync(
+      'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+    );
+    await db.runAsync(
+      "INSERT OR IGNORE INTO settings (key, value) VALUES ('first_day_of_week', 'sunday')",
+    );
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CalendarGrid } from '@/components/calendar/calendar-grid';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { getSetting } from '@/db/settings';
 import { getDatesWithTasks } from '@/db/tasks';
 
 const MONTH_NAMES = [
@@ -31,6 +32,7 @@ export default function CalendarScreen() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [taskDates, setTaskDates] = useState<Set<string>>(new Set());
+  const [firstDayOfWeek, setFirstDayOfWeek] = useState<'sunday' | 'monday'>('sunday');
 
   const yearMonth = `${year}-${String(month + 1).padStart(2, '0')}`;
 
@@ -41,6 +43,14 @@ export default function CalendarScreen() {
     }
     load();
   }, [db, yearMonth]);
+
+  useFocusEffect(() => {
+    async function load() {
+      const val = await getSetting(db, 'first_day_of_week', 'sunday');
+      setFirstDayOfWeek(val as 'sunday' | 'monday');
+    }
+    load();
+  });
 
   function goToPrevMonth() {
     setMonth((m) => {
@@ -84,6 +94,7 @@ export default function CalendarScreen() {
           year={year}
           month={month}
           taskDates={taskDates}
+          firstDayOfWeek={firstDayOfWeek}
           onDayPress={handleDayPress}
         />
       </SafeAreaView>

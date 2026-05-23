@@ -9,21 +9,24 @@ interface CalendarGridProps {
   year: number;
   month: number;
   taskDates: Set<string>;
+  firstDayOfWeek: 'sunday' | 'monday';
   onDayPress: (date: string) => void;
 }
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const SUNDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function formatDate(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-function getDays(year: number, month: number) {
-  const firstDay = new Date(year, month, 1).getDay();
+function getDays(year: number, month: number, firstDayOfWeek: 'sunday' | 'monday') {
+  const jsDay = new Date(year, month, 1).getDay();
+  const offset = firstDayOfWeek === 'monday' ? (jsDay + 6) % 7 : jsDay;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const result: (null | { date: string; day: number })[] = [];
 
-  for (let i = 0; i < firstDay; i++) {
+  for (let i = 0; i < offset; i++) {
     result.push(null);
   }
   for (let d = 1; d <= daysInMonth; d++) {
@@ -37,15 +40,16 @@ function getToday(): string {
   return formatDate(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-export function CalendarGrid({ year, month, taskDates, onDayPress }: CalendarGridProps) {
+export function CalendarGrid({ year, month, taskDates, firstDayOfWeek, onDayPress }: CalendarGridProps) {
   const theme = useTheme();
   const today = getToday();
-  const days = getDays(year, month);
+  const days = getDays(year, month, firstDayOfWeek);
+  const labels = firstDayOfWeek === 'monday' ? MONDAY_LABELS : SUNDAY_LABELS;
 
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.headerRow}>
-        {DAY_LABELS.map((label) => (
+        {labels.map((label) => (
           <ThemedView key={label} style={styles.dayHeader}>
             <ThemedText type="small" themeColor="textSecondary">
               {label}

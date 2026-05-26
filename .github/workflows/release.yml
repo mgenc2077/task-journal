@@ -18,24 +18,32 @@ jobs:
         with:
           node-version: 22
 
-      - name: Setup EAS
-        uses: expo/eas-build@main
+      - uses: actions/setup-java@v5
         with:
-          expo-token: ${{ secrets.EXPO_TOKEN }}
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build release APK
-        run: eas build --platform android --profile release --local --output ./task-journal.apk --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --profile release --local --output ./task-journal.apk
 
       - name: Extract version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
-      - name: Read release notes
+      - name: Read changelog
         id: notes
         run: |
-          FILE="docs/release-notes/v${{ steps.version.outputs.VERSION }}.md"
+          FILE="docs/changelogs/v${{ steps.version.outputs.VERSION }}.md"
           if [ -f "$FILE" ]; then
-            echo "Found release notes: $FILE"
+            echo "Found changelog: $FILE"
             {
               echo "BODY<<EOF"
               cat "$FILE"
@@ -43,7 +51,7 @@ jobs:
               echo "EOF"
             } >> "$GITHUB_OUTPUT"
           else
-            echo "No release notes found at $FILE"
+            echo "No changelog found at $FILE"
             echo "BODY=No release notes available." >> "$GITHUB_OUTPUT"
           fi
 

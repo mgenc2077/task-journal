@@ -1,6 +1,6 @@
 # Task Journal
 
-A mobile task journal app with calendar view, repeated task templates, categories, and LAN sync. Built with Expo SDK 56.
+Similar concept to my other application [FoodJournal](https://github.com/mgenc2077/FoodJournal) but built with React Native to test out the technology. mobile task journal app with calendar view, repeated task templates, categories, and LAN sync. Built with Expo SDK 56.
 
 ## Features
 
@@ -31,19 +31,15 @@ A mobile task journal app with calendar view, repeated task templates, categorie
 - Expo CLI (`npx expo install`)
 - For sync: Docker or Go 1.26+
 
-### Install
+### Releases
+
+You can download the latest release from the [Releases page](https://github.com/) for the android and sync-server from ghcr.io.
+
+### Local Development
 
 ```sh
 npm install
 npx expo start
-```
-
-### Run on device
-
-```sh
-npm run android   # Android
-npm run ios       # iOS
-npm run web       # Web
 ```
 
 ### Sync Server

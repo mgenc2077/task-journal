@@ -2,6 +2,8 @@
 
 Similar concept to my other application [FoodJournal](https://github.com/mgenc2077/FoodJournal) but built with React Native to test out the technology. mobile task journal app with calendar view, repeated task templates, categories, and LAN sync. Built with Expo SDK 56.
 
+<img src="docs/screenshots/calendar_view.jpg" width="45%"> <img src="docs/screenshots/Repeatedtasks_view.jpg" width="45%">
+
 ## Features
 
 - **Calendar view** — Monthly grid showing tasks per day. Tap a day to see and manage its tasks.

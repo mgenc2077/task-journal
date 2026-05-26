@@ -32,7 +32,7 @@ jobs:
       - name: Build release APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile release --local --output ./task-journal.apk
+        run: eas build --platform android --profile release --local --output ./task-journal.apk --non-interactive
 
       - name: Extract version from tag
         id: version
